@@ -1,37 +1,70 @@
-import { useDispatch } from "react-redux";
-import { Formik, Form, Field, ErrorMessage } from 'formik';
-import * as Yup from 'yup';
+import { useDispatch, useSelector } from "react-redux";
 import { addContact } from "../../redux/contactsSlice";
-import styles from './ContactForm.module.css';
+import { nanoid } from "nanoid";
+import { Formik, Form, Field, ErrorMessage } from "formik";
+import * as Yup from "yup";
+import styles from "./ContactForm.module.css";
 
-const validationSchema = Yup.object({
-  name: Yup.string().min(3).max(50).required("Required"),
-  number: Yup.string().required("Required"),
-});
+const ContactForm = () => {
+    const dispatch = useDispatch();
+    const contacts = useSelector(state => state.contacts.items);
 
-export default function ContactForm() {
-  const dispatch = useDispatch();
+    const validationSchema = Yup.object({
+        name: Yup.string()
+            .min(3, 'Must be at least 3 characters')
+            .max(50, 'Must be 50 characters or less')
+            .required('Required'),
+        number: Yup.string()
+            .matches(/^\d{3}-\d{2}-\d{2}$/, 'Invalid phone number')
+            .required('Required'),
+    });
 
-  return (
-    <Formik
-      initialValues={{ name: "", number: "" }}
-      validationSchema={validationSchema}
-      onSubmit={(values, actions) => {
-        dispatch(addContact(values));
-        actions.resetForm();
-      }}
-    >
-      <Form className={styles.form}>
-        <label className={styles.label}>Name:</label>
-        <Field type="text" name="name" className={styles.input}/>
-        <ErrorMessage name="name" component="div" className={styles.error} />
+    const handleSubmit = (values, { resetForm }) => {
+        const { name, number } = values;
 
-        <label className={styles.label}>Number:</label>
-        <Field type="text" name="number" className={styles.input}/>
-        <ErrorMessage name="number" component="div" className={styles.error} />
+        // Перевірка на дублікати
+        const isDuplicate = contacts.some(contact => contact.name.toLowerCase() === name.toLowerCase());
 
-        <button type="submit" className={styles.button}>Add Contact</button>
-      </Form>
-    </Formik>
-  );
-}
+        if (isDuplicate) {
+            alert(`${name} is already in contacts!`);
+            return;
+        }
+
+        const newContact = {
+            id: nanoid(),
+            name,
+            number,
+        };
+
+        dispatch(addContact(newContact)); // Додаємо контакт у Redux Store
+        resetForm();
+    };
+
+    return (
+        <Formik
+            initialValues={{ name: '', number: '' }}
+            validationSchema={validationSchema}
+            onSubmit={handleSubmit}
+        >
+            {({ isSubmitting }) => (
+                <Form className={styles.form}>
+                    <label className={styles.label}>
+                        Name
+                        <Field type="text" name="name" className={styles.input} />
+                        <ErrorMessage name="name" component="div" className={styles.error} />
+                    </label>
+                    <label className={styles.label}>
+                        Number
+                        <Field type="text" name="number" className={styles.input} />
+                        <ErrorMessage name="number" component="div" className={styles.error} />
+                    </label>
+                    <button type="submit" disabled={isSubmitting} className={styles.button}>
+                        Add Contact
+                    </button>
+                </Form>
+            )}
+        </Formik>
+    );
+};
+
+export default ContactForm;
